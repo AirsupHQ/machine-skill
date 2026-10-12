@@ -61,7 +61,7 @@ Each machine was made from the single line under it. Click one to run it live.
   </tr>
   <tr>
     <td><sub><b>Turbofan</b> · <i>a turbofan jet engine, the kind that pushes a widebody off the runway</i><br>Brayton cycle: about 340 kN at take-off, 83 % of it from the bypass. 3,597 parts. Break: throw a fan blade, and the solver computes the load the case must hold.</sub></td>
-    <td><sub><b>Rocket engine</b> · <i>a Raptor style full flow rocket engine on a test stand</i><br>Chamber and nozzle solution: 2,234 kN, Isp 318 s at sea level, Mach 4.06 at the exit. Break: cut the regen cooling and the copper throat melts.</sub></td>
+    <td><sub><b>Rocket engine</b> · <i>a Raptor style full flow rocket engine on a test stand</i><br>Chamber and nozzle solution: 2,462 kN and Isp 321 s at 330 bar, sea level, Mach 4.06 at the exit. Break: cut the regen cooling and the copper throat melts.</sub></td>
   </tr>
 </table>
 
