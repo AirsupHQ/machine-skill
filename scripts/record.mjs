@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Turn any Airsup Lab page into a film, frame exact, in one command.
+// Turn any Machine Skill page into a film, frame exact, in one command.
 //
 //   node scripts/record.mjs examples/turbofan.html out/turbofan.mp4
 //   node scripts/record.mjs examples/turbofan.html out/turbofan.mp4 --shot main --music freepd:Classical/Easy_Lemon
@@ -93,7 +93,7 @@ if (music) {
   let src = music
   if (music.startsWith('freepd:')) {
     const [cat, name] = music.slice(7).split('/')
-    const dir = join(homedir(), '.cache', 'airsup-lab', 'music'); mkdirSync(dir, { recursive: true })
+    const dir = join(homedir(), '.cache', 'machine-skill', 'music'); mkdirSync(dir, { recursive: true })
     src = join(dir, `${cat}_${name}.mp3`)
     if (!existsSync(src)) {
       const u = `https://archive.org/download/freepd/${encodeURIComponent(cat)}/${encodeURIComponent(name)}.mp3`

@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Airsup Lab · launch film</title>
+<title>Machine Skill · launch film</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* The launch film, directed in the browser: live Airsup Lab pages in a card, an editorial layer on top.
+/* The launch film, directed in the browser: live Machine Skill pages in a card, an editorial layer on top.
    Recorded frame by frame with scripts/record.mjs (window.__film), so every frame is complete. */
 :root { --paper:#f3f2ee; --ink:#141414; --mute:#8c8b87; --faint:#c9c7c1; --line:#e2e0da; --serif:'Instrument Serif',Georgia,serif; --sans:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace }
 html,body { margin:0; width:1920px; height:1080px; overflow:hidden; background:var(--paper); color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased }
@@ -60,10 +60,10 @@ html,body { margin:0; width:1920px; height:1080px; overflow:hidden; background:v
 </head>
 <body>
 <div id="grid" class="layer"><div class="world"></div><div id="big"></div></div>
-<div id="prompt" class="layer"><div class="card"><div class="hd"><span>You type</span><span>Claude Code</span></div><div class="tx"><b>/airsup-lab</b> <span class="t"></span><span class="caret"></span></div><div class="send">&#8593;</div></div></div>
+<div id="prompt" class="layer"><div class="card"><div class="hd"><span>You type</span><span>Claude Code</span></div><div class="tx"><b>/machine</b> <span class="t"></span><span class="caret"></span></div><div class="send">&#8593;</div></div></div>
 <div id="stage" class="layer"><div class="card"><iframe id="sim" title="live machine"></iframe></div></div>
 <div id="mont" class="layer"><div class="card"><iframe id="sim2" title="second machine"></iframe></div></div>
-<div id="end" class="layer"><div class="name">Airsup Lab</div><div class="line"><b>Name a machine,</b> and Claude builds <i>the real thing</i>, running on real physics.</div><div class="cmd"><span class="t"></span><span class="caret"></span></div><div class="small">An open source skill for Claude Code &#183; built with Claude Opus 5.5 &#183; MIT &#183; airsup.ai/lab/skill</div></div>
+<div id="end" class="layer"><div class="name">Machine Skill</div><div class="line"><b>Name a machine,</b> and Claude builds <i>the real thing</i>, running on real physics.</div><div class="cmd"><span class="t"></span><span class="caret"></span></div><div class="small">An open source skill for Claude Code &#183; built with Claude Opus 5.5 &#183; MIT &#183; airsup.ai/lab/skill</div></div>
 <div id="beat"><span class="n"></span><div><b></b> <span class="g"></span></div></div>
 <div id="fade"></div>
 <script type="module">
@@ -110,7 +110,7 @@ spots.forEach((p, i) => {
   world.appendChild(el); cards.push({ el, p, m, ph: R() * 6.28 })
 })
 const words = WORDS.map((w, i) => { const el = document.createElement('div'); el.className = 'word'; el.innerHTML = w; world.appendChild(el); return { el, p: [(R() - 0.5) * 1700, (R() - 0.5) * 900, -200 - R() * 700] } })
-const slash = document.createElement('div'); slash.className = 'word'; slash.innerHTML = '<b>/airsup-lab</b>'; world.appendChild(slash)
+const slash = document.createElement('div'); slash.className = 'word'; slash.innerHTML = '<b>/machine</b>'; world.appendChild(slash)
 function grid(t) {
   const z = t * 46
   for (const c of cards) {
@@ -165,7 +165,7 @@ function montage(t) {
 }
 
 // ------------------------------------------------------------------ end card
-const CMD = 'npx skills add Pytro001/airsup-lab'
+const CMD = 'npx skills add AirsupHQ/machine-skill'
 function end(t) {
   const lt = t - T.endIn
   const k = clamp((lt - 1.4) / 1.6)

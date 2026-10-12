@@ -1,9 +1,9 @@
 ---
-name: airsup-lab
+name: machine
 description: Turn one line ("a turbofan jet engine", "a mechanical watch", "an LVAD heart pump") into a photoreal, physics based, interactive 3D simulation of that machine in a single HTML file, plus a 20 to 30 second film to post it. Real proportions in metres, real materials (PBR metals, paints, polymers, glass), studio lighting with soft shadows, moving parts driven by a small solver that computes real numbers (thrust, torque, rpm, flow, pressure, efficiency), and modes to explode it, cut it open with clean section caps, x-ray it, slow it down, label it and break it. Use this whenever someone asks to build, simulate, visualise, explain or "show how X works" for any machine, engine, mechanism, device, instrument or piece of hardware, wants an interactive 3D model or a cutaway, or wants a video of a machine for a post, even if they never say "simulation" or "three.js".
 ---
 
-# Airsup Lab
+# Machine Skill
 
 You build a machine the way a product studio photographs one and an engineer explains one: the real thing at its real size, in real materials, on a clean studio set, running on real equations. One line in, one HTML file out, and a film in one command.
 

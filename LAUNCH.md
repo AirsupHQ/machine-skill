@@ -6,18 +6,18 @@ Everything here is ready locally. Nothing has been pushed to GitHub. These are t
 
 ```sh
 cd "~/Documents/Airsup Main/airsup-lab-skill"
-gh repo create Pytro001/airsup-lab --public --source . --push --description "Describe any machine in one line. Claude builds a photoreal, physics based, interactive simulation of it in one HTML file, plus the film to post it. An open source Claude Code skill."
-gh repo edit Pytro001/airsup-lab --homepage https://airsup.ai/lab/skill --add-topic claude,claude-code,agent-skills,claude-skill,anthropic,threejs,webgl,simulation,physics,engineering,mechanical-engineering,interactive,explainer,cutaway,education,product-visualization
+gh repo create AirsupHQ/machine-skill --public --source . --push --description "Describe any machine in one line. Claude builds a photoreal, physics based, interactive simulation of it in one HTML file, plus the film to post it. An open source Claude Code skill."
+gh repo edit AirsupHQ/machine-skill --homepage https://airsup.ai/lab/skill --add-topic claude,claude-code,agent-skills,claude-skill,anthropic,threejs,webgl,simulation,physics,engineering,mechanical-engineering,interactive,explainer,cutaway,education,product-visualization
 ```
 
-If you publish under another owner or name, replace `Pytro001/airsup-lab` in: README.md, film/launch.html (`CMD`), and on the site in `plm-app/rocket-engine/skill.html` (two places). Then re-record the end card of the launch film (`node scripts/record.mjs film/launch.html out/launch.mp4 --from 34`), or the whole film.
+If you publish under another owner or name, replace `AirsupHQ/machine-skill` in: README.md, film/launch.html (`CMD`), and on the site in `plm-app/rocket-engine/skill.html` (two places). Then re-record the end card of the launch film (`node scripts/record.mjs film/launch.html out/launch.mp4 --from 34`), or the whole film.
 
 Then on GitHub:
 
 - Settings, General, Social preview: upload `.github/assets/social.jpg`.
 - Pin the repo on your profile.
 - Check that the README hero (`.github/assets/hero.webp`) plays and the gallery images load.
-- Run the install once on a clean machine: `npx skills add Pytro001/airsup-lab -g -a claude-code`, then `/airsup-lab a hand crank pencil sharpener` in Claude Code.
+- Run the install once on a clean machine: `npx skills add AirsupHQ/machine-skill -g -a claude-code`, then `/machine a hand crank pencil sharpener` in Claude Code.
 
 ## 2. Post on X
 
@@ -33,7 +33,7 @@ The post copy, reply clips and prepared answers are in `~/Documents/New sims/38 
 
 ## 3. Show it where builders look (same day, after X)
 
-- Hacker News, Show HN: "Show HN: Airsup Lab, describe a machine in one line and Claude builds a physics simulation" with the GitHub link. Be in the thread for two hours.
+- Hacker News, Show HN: "Show HN: Machine Skill, describe a machine in one line and Claude builds a physics simulation" with the GitHub link. Be in the thread for two hours.
 - r/ClaudeAI and r/threejs: the launch film plus the repo link, written as "here is how it works", not an ad.
 - The Claude Code skills directories that accept submissions (agentskills.io, the skills CLI registry), one line description from `.github/REPO.md`.
 - Reply to the Anatomy thread only if it is natural (a kind word to Ryan, link in your reply, not a dunk).
@@ -46,7 +46,7 @@ The post copy, reply clips and prepared answers are in `~/Documents/New sims/38 
 
 ## Before you post: checklist
 
-- [ ] `gh repo view Pytro001/airsup-lab --web` shows the README with the hero and gallery
+- [ ] `gh repo view AirsupHQ/machine-skill --web` shows the README with the hero and gallery
 - [ ] airsup.ai/lab/skill loads, the film plays, every machine opens live
-- [ ] `npx skills add Pytro001/airsup-lab` works on a clean machine
+- [ ] `npx skills add AirsupHQ/machine-skill` works on a clean machine
 - [ ] Build stats in post.md filled from your Claude Code usage

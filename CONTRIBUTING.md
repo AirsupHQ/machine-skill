@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping. Airsup Lab gets better in three ways: better machines, a better kit, and a sharper SKILL.md.
+Thank you for helping. Machine Skill gets better in three ways: better machines, a better kit, and a sharper SKILL.md.
 
 ## A new example machine
 

@@ -1,4 +1,4 @@
-<h1 align="center">Airsup Lab</h1>
+<h1 align="center">Machine Skill</h1>
 
 <p align="center"><b>Describe any machine in one line. Claude builds the real thing, running on real physics.</b><br>A photoreal, interactive 3D simulation in one HTML file, plus the film to post it. An open source skill for Claude Code.</p>
 
@@ -25,7 +25,7 @@
 ---
 
 ```text
-/airsup-lab a turbofan jet engine, the kind that pushes a widebody off the runway
+/machine a turbofan jet engine, the kind that pushes a widebody off the runway
 ```
 
 Claude researches the real machine, writes down its real dimensions and the physics that make it work, and builds it: a 2.9 m fan of twisted titanium airfoils, a 10 stage compressor, an annular combustor with 22 fuel nozzles, two turbines glowing at the temperatures a Brayton cycle solver computes, on a ground run stand. You drag the throttle and about 340 kN comes out of the cycle, not out of a table. You cut it open and the section faces are solid metal. You throw a fan blade and the solver tells you the imbalance load the case has to hold.
@@ -35,19 +35,19 @@ Then one command turns it into a film for your feed.
 ## Quick start
 
 ```sh
-npx skills add Pytro001/airsup-lab -g -a claude-code
+npx skills add AirsupHQ/machine-skill -g -a claude-code
 ```
 
 Then in Claude Code:
 
 ```text
-/airsup-lab a mechanical watch movement, the escapement ticking
+/machine a mechanical watch movement, the escapement ticking
 ```
 
 You get `watch.html`: open it, drag, cut, explode, break. To film it:
 
 ```sh
-node ~/.claude/skills/airsup-lab/scripts/record.mjs watch.html out/watch.mp4 --music freepd:Classical/Easy_Lemon
+node ~/.claude/skills/machine/scripts/record.mjs watch.html out/watch.mp4 --music freepd:Classical/Easy_Lemon
 ```
 
 ## Gallery
@@ -80,14 +80,14 @@ The pages are in [`examples/`](examples): each is one HTML file you can open fro
 
 ## Install
 
-Airsup Lab is a standard [Agent Skill](https://code.claude.com/docs/en/skills): a folder with a `SKILL.md` at its root. This repository is that folder.
+Machine Skill is a standard [Agent Skill](https://code.claude.com/docs/en/skills): a folder with a `SKILL.md` at its root. This repository is that folder.
 
 | | Command | Installs to |
 |---|---|---|
-| **skills CLI**, for you | `npx skills add Pytro001/airsup-lab -g -a claude-code` | `~/.claude/skills/airsup-lab` |
-| **skills CLI**, one project | `npx skills add Pytro001/airsup-lab` | `.claude/skills/airsup-lab` |
-| **git**, for you | `git clone https://github.com/Pytro001/airsup-lab.git ~/.claude/skills/airsup-lab` | `~/.claude/skills/airsup-lab` |
-| **git**, one project | `git clone https://github.com/Pytro001/airsup-lab.git .claude/skills/airsup-lab` | `.claude/skills/airsup-lab` |
+| **skills CLI**, for you | `npx skills add AirsupHQ/machine-skill -g -a claude-code` | `~/.claude/skills/machine` |
+| **skills CLI**, one project | `npx skills add AirsupHQ/machine-skill` | `.claude/skills/machine` |
+| **git**, for you | `git clone https://github.com/AirsupHQ/machine-skill.git ~/.claude/skills/machine` | `~/.claude/skills/machine` |
+| **git**, one project | `git clone https://github.com/AirsupHQ/machine-skill.git .claude/skills/machine` | `.claude/skills/machine` |
 
 Claude Code picks up new skills in a running session; if the `skills` folder did not exist when the session started, run `/reload-skills`.
 
@@ -105,13 +105,13 @@ Claude Code picks up new skills in a running session; if the `skills` folder did
 
 ## Usage
 
-Type `/airsup-lab` and name the machine. You can also just ask Claude to "build", "simulate" or "show how X works"; the skill loads itself for machines, engines, mechanisms and devices.
+Type `/machine` and name the machine. You can also just ask Claude to "build", "simulate" or "show how X works"; the skill loads itself for machines, engines, mechanisms and devices.
 
 ```text
-/airsup-lab a hydroelectric Francis turbine
-/airsup-lab a Swiss lever escapement, slowed down so I can see the impulse
-/airsup-lab the gearbox of a 5 MW wind turbine, cut open
-/airsup-lab a steam locomotive's valve gear, and give me a 30 second video for X
+/machine a hydroelectric Francis turbine
+/machine a Swiss lever escapement, slowed down so I can see the impulse
+/machine the gearbox of a 5 MW wind turbine, cut open
+/machine a steam locomotive's valve gear, and give me a 30 second video for X
 ```
 
 Three habits get the best machines:
@@ -155,7 +155,7 @@ Every part is a closed solid with a double sided material clipped by two planes 
 <br>
 
 ```text
-airsup-lab/
+machine-skill/
 ├── SKILL.md                 what Claude reads
 ├── kit/
 │   ├── lab-kit.js           the runtime (inlined into every page)

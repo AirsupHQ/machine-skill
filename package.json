@@ -1,5 +1,5 @@
 {
-  "name": "airsup-lab-skill",
+  "name": "machine-skill",
   "version": "1.0.0",
   "description": "Describe any machine in one line. Claude builds a photoreal, physics based, interactive simulation of it, plus the film to post it.",
   "type": "module",

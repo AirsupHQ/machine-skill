@@ -1,4 +1,4 @@
-// Airsup Lab kit: the runtime every machine page is built on.
+// Machine Skill kit: the runtime every machine page is built on.
 // One ES module. Paste it verbatim into the first <script type="module"> of a page
 // (scripts/inline.mjs does that), or import it. It needs the import map from
 // kit/template.html (three@0.170.0 from jsDelivr). MIT licence, see LICENSE.
@@ -646,7 +646,7 @@ export class Lab {
     const ui = document.createElement('div'); ui.className = 'lab-ui'
     ui.innerHTML = `
       <div class="lab-labels"><svg></svg></div>
-      <div class="lab-prompt"><b>/airsup-lab</b> <span class="txt"></span><span class="caret" style="display:none"></span></div>
+      <div class="lab-prompt"><b>/machine</b> <span class="txt"></span><span class="caret" style="display:none"></span></div>
       <div class="lab-pills">${(o.pills ?? ['three.js', 'Physics', 'Film']).map((p) => `<span>${p}</span>`).join('')}</div>
       <div class="lab-side">
         <div class="lab-no">No. ${String(o.no ?? 1).padStart(2, '0')}</div>

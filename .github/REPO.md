@@ -1,6 +1,6 @@
 # GitHub repository settings
 
-**Name:** airsup-lab
+**Name:** machine-skill
 
 **Description (paste into About):**
 Describe any machine in one line. Claude builds a photoreal, physics based, interactive simulation of it in one HTML file, plus the film to post it. An open source Claude Code skill.
