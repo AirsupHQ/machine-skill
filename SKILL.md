@@ -52,7 +52,7 @@ const lab = new Lab({ prompt, no, title, sub, size, view, cut })   // 1. the lab
 // 4. break, explain, film      lab.breakIt(...); lab.how(...); lab.autoFilm(...); lab.start()
 ```
 
-During development keep `<script type="module" src="../kit/lab-kit.js">` in the kit block. When it is done run `node scripts/inline.mjs <name>.html` to paste the kit in, so the page is one file.
+Right after copying, run `node <skill dir>/scripts/inline.mjs <name>.html`: it pastes the kit into the marked block so the page is one self contained file wherever it lives (the template's `src="../kit/lab-kit.js"` only resolves inside this repo). Then write your machine in the second script block.
 
 ### 3. Geometry: real solids at real size
 
