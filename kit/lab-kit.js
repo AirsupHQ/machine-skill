@@ -114,6 +114,9 @@ const CUT = {
   hatch: { value: 0.012 },
 }
 const ALL_MATS = new Set()
+/** section face style: 'red' (museum cutaway paint, the default) or 'metal' (the freshly machined material). Set before creating materials: setCaps('metal') */
+const CAPS = { style: 'red', red: new THREE.Color(0.56, 0.085, 0.045) }
+export function setCaps(style, color) { CAPS.style = style; if (color) CAPS.red = col(color) }
 
 /**
  * Patch a standard or physical material so that, while a section cut is open, the back faces
@@ -148,12 +151,17 @@ function capPatch(m, capColor, capRough = 0.38, capMetal = null) {
         if (dn > 0.0) { if (th < t1) { t1 = th; id = k; } } else t0 = max(t0, th);
       }`)
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+      // a back face of a closed solid is only ever seen through the opening the cut made: shade it as the
+      // section face (plane normal, cap colour) at its own depth, so ordinary depth testing keeps it honest
       bool labCap = false; vec3 labHit = vLabW; vec3 labN = uCutA.xyz;
       if (!gl_FrontFacing && uCutA.w < 1e4) {
+        labCap = true;
         vec3 ro = cameraPosition, toF = vLabW - ro; float tf = length(toF); vec3 rd = toF / max(tf, 1e-6);
         float t0 = 0.0, t1 = 1e9; int id = -1;
         labClip(uCutA, ro, rd, t0, t1, id, 0); labClip(uCutB, ro, rd, t0, t1, id, 1);
-        if (id >= 0 && t0 < t1 && t1 > 0.0 && t1 < tf) { labCap = true; labHit = ro + rd * t1; labN = id == 1 ? uCutB.xyz : uCutA.xyz; }
+        if (id == 1) labN = uCutB.xyz;
+        else if (id < 0) labN = abs(dot(uCutA.xyz, vLabW) + uCutA.w) < abs(dot(uCutB.xyz, vLabW) + uCutB.w) ? uCutA.xyz : uCutB.xyz;
+        labHit = vLabW - labN * (dot(labN, vLabW) + (id == 1 ? uCutB.w : uCutA.w));
       }`)
       .replace('#include <color_fragment>', `#include <color_fragment>
       if (labCap) {
@@ -165,14 +173,8 @@ function capPatch(m, capColor, capRough = 0.38, capMetal = null) {
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nif (labCap) metalnessFactor = uCapMetal;')
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       if (labCap) { vec3 nw = normalize(-labN); normal = normalize((viewMatrix * vec4(nw, 0.0)).xyz); if (dot(normal, normalize(vViewPosition)) > 0.0) normal = -normal; }`)
-      .replace(/}\s*$/, `
-      #if defined(USE_LAB_DEPTH)
-      if (labCap) { vec4 c = uCutProj * vec4(labHit, 1.0); gl_FragDepth = clamp(c.z / c.w * 0.5 + 0.5, 0.0, 1.0); } else gl_FragDepth = gl_FragCoord.z;
-      #endif
-      }`)
     if (m.userData.extraShader) m.userData.extraShader(sh)
   }
-  m.defines = { ...(m.defines || {}), USE_LAB_DEPTH: '' }
   m.customProgramCacheKey = () => 'labcap' + (m.userData.extraKey || '')
   m.side = THREE.DoubleSide
   m.shadowSide = THREE.FrontSide
@@ -242,8 +244,9 @@ export function mat(o) {
     return m
   }
   // cap colour: freshly machined face of the same material, a touch brighter and smoother
-  const capC = cap !== undefined ? col(cap) : m.metalness > 0.5 ? m.color.clone().lerp(new THREE.Color(0.8, 0.8, 0.8), 0.35) : m.color.clone().multiplyScalar(0.9)
-  return capPatch(m, capC, capRough ?? 0.36, m.metalness > 0.5 ? 1 : 0)
+  const metalCap = m.metalness > 0.5 ? m.color.clone().lerp(new THREE.Color(0.8, 0.8, 0.8), 0.35) : m.color.clone().multiplyScalar(0.9)
+  const capC = cap !== undefined ? col(cap) : CAPS.style === 'metal' ? metalCap : CAPS.red.clone()
+  return capPatch(m, capC, capRough ?? (CAPS.style === 'metal' ? 0.36 : 0.55), CAPS.style === 'metal' && m.metalness > 0.5 ? 1 : 0)
 }
 
 /**
@@ -563,7 +566,7 @@ html,body { margin:0; height:100%; background:var(--paper); color:var(--ink); fo
 .lab-scale { position:absolute; left:4.2vw; bottom:calc(4.2vh + 3.4em); font-size:clamp(10px,0.8vw,14px); color:var(--mute); font-variant-numeric:tabular-nums }
 .lab-scale div { height:1px; background:var(--mute); margin-top:0.35em; position:relative } .lab-scale div::before,.lab-scale div::after { content:''; position:absolute; top:-3px; width:1px; height:7px; background:var(--mute) } .lab-scale div::after { right:0 }
 .lab-labels { position:absolute; inset:0 } .lab-labels svg { position:absolute; inset:0; width:100%; height:100% }
-.lab-lab { position:absolute; font-size:clamp(11px,0.86vw,16px); color:var(--ink); white-space:nowrap; transform:translate(0,-50%); transition:opacity .35s; line-height:1.25 }
+.lab-lab { position:absolute; font-size:clamp(11px,0.86vw,16px); color:var(--ink); white-space:nowrap; transform:translate(0,-50%); transition:opacity .35s; line-height:1.25; text-shadow:0 0 3px var(--paper), 0 0 8px var(--paper), 0 0 14px var(--paper) }
 .lab-lab small { display:block; color:var(--mute); font-size:0.86em; font-variant-numeric:tabular-nums }
 .lab-lab.left { transform:translate(-100%,-50%); text-align:right }
 .lab-beat { position:absolute; left:4.2vw; bottom:4.6vh; display:flex; align-items:center; gap:0.85em; font-size:clamp(16px,1.9vw,36px); letter-spacing:-0.01em; opacity:0; transition:none }
@@ -572,7 +575,10 @@ html,body { margin:0; height:100%; background:var(--paper); color:var(--ink); fo
 .lab-cursor { position:absolute; left:0; top:0; width:clamp(18px,1.45vw,28px); opacity:0; filter:drop-shadow(0 2px 3px rgba(0,0,0,0.25)); transform-origin:2px 2px }
 .lab-flash { position:absolute; inset:0; background:var(--accent); opacity:0; mix-blend-mode:multiply }
 .lab-brand { position:absolute; right:4.2vw; bottom:4.2vh; font-size:clamp(10px,0.78vw,14px); color:var(--faint) }
-.lab-film .lab-modes, .lab-film .lab-how { display:none }
+.lab-film .lab-how, .lab-film .lab-scale { display:none }
+.lab-film .lab-modes button:not([data-k=break]) { display:none }
+.lab-film:not(.lab-embed) .lab-modes { left:auto; right:4.2vw }
+.lab-embed .lab-beat { display:none }
 .lab-hidden { opacity:0 !important }
 @media (max-width: 760px) {
   .lab-side { top:auto; bottom:12vh; transform:none; right:16px; left:16px; width:auto }
@@ -635,6 +641,7 @@ export class Lab {
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st)
     if (this.theme === 'night') document.documentElement.classList.add('lab-night')
     if (this.filmMode) document.documentElement.classList.add('lab-film')
+    if (this.q.has('embed')) document.documentElement.classList.add('lab-embed')
     const o = this.o
     const ui = document.createElement('div'); ui.className = 'lab-ui'
     ui.innerHTML = `
@@ -657,7 +664,7 @@ export class Lab {
     this.ui = ui
     this.$ = (s) => ui.querySelector(s)
     this.$('.lab-prompt .txt').textContent = o.prompt ?? ''
-    if (this.embed) for (const s of ['.lab-modes', '.lab-how', '.lab-scale']) this.$(s).style.display = 'none'
+    if (this.embed && !this.filmMode) for (const s of ['.lab-modes', '.lab-how', '.lab-scale']) this.$(s).style.display = 'none'
     if (o.frame === 'center') this.$('.lab-side').style.display = 'none'
     // the primary metric block
     this.metricEl = this.$('.lab-metric')
@@ -811,7 +818,7 @@ export class Lab {
     this.bgColor = bg
     this.scene.background = bg.clone()
     this.scene.environment = studioEnvironment(this.renderer, this.theme)
-    this.scene.environmentIntensity = this.o.envIntensity ?? (paper ? 1.0 : 0.9)
+    this.scene.environmentIntensity = this.o.envIntensity ?? (paper ? 0.82 : 0.9)
     if (this.o.hdri) {
       this.loading++
       new RGBELoader().load(`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/${this.o.hdri}_1k.hdr`, (t) => {
@@ -833,15 +840,15 @@ export class Lab {
     floor.rotation.x = -Math.PI / 2; floor.position.y = gy; floor.receiveShadow = true; floor.userData.studio = true
     this.scene.add(floor); this.floor = floor
     // lights: soft key with VSM shadow, cool rim, gentle fill (the environment does most of the work)
-    const key = new THREE.DirectionalLight(0xfff3e6, paper ? 2.2 : 2.6)
+    const key = new THREE.DirectionalLight(0xfff3e6, paper ? 2.4 : 2.6)
     key.position.set(-3.2, 6.5, 4.2); key.castShadow = true
-    key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 14; key.shadow.blurSamples = 20
+    key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 7; key.shadow.blurSamples = 16
     key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02
     const sc = key.shadow.camera; sc.left = -3.2; sc.right = 3.2; sc.top = 3.2; sc.bottom = -3.2; sc.near = 0.5; sc.far = 20
     this.scene.add(key, key.target); this.key = key
     const rim = new THREE.DirectionalLight(0xdbe8ff, paper ? 0.9 : 1.8); rim.position.set(4, 3, -5); this.scene.add(rim)
-    const fill = new THREE.HemisphereLight(0xffffff, paper ? 0xd9d5cc : 0x202020, paper ? 0.35 : 0.15); this.scene.add(fill)
-    this._contact = new ContactShadow(this, paper ? 0.55 : 0.8)
+    const fill = new THREE.HemisphereLight(0xffffff, paper ? 0xd9d5cc : 0x202020, paper ? 0.2 : 0.15); this.scene.add(fill)
+    this._contact = new ContactShadow(this, paper ? 0.7 : 0.85)
   }
 
   setView(v) {
@@ -1128,10 +1135,10 @@ export class Lab {
         { t: 16.4, beat: ['05', 'Take it apart.', 'Every part on its own axis.'], set: { explode: 1 } },
         { t: 20.6, set: { explode: 0 } },
         ...(this._break ? [
-          { t: 21.4, beat: ['06', o.breakBeat ?? 'Then break it.', o.breakSub ?? 'The solver decides what fails.'], cursor: { to: 'button:break', dur: 0.8 } },
+          { t: 21.4, beat: ['06', o.breakBeat ?? 'Then break it.', o.breakSub ?? 'The solver decides what fails.'], cursor: { to: 'button:break', dur: 0.8 }, set: o.breakCut ? { cut: 1 } : undefined },
           { t: 22.4, cursor: { click: true }, do: (lab) => lab.breakNow() },
           { t: 22.9, cursor: { hide: true } },
-          { t: 26.2, do: (lab) => lab.resetBreak(), slider: c ? { id: sl, to: c.o.value, dur: 0.01 } : null },
+          { t: 26.2, do: (lab) => lab.resetBreak(), slider: c ? { id: sl, to: c.o.value, dur: 0.01 } : null, set: o.breakCut ? { cut: 0 } : undefined },
         ] : []),
       ],
     }
@@ -1193,7 +1200,7 @@ export class Lab {
   _updateBeat(t) {
     const el = this.$('.lab-beat'), b = this._beat
     if (!b) { el.style.opacity = '0'; return }
-    el.querySelector('.n').textContent = b.n; el.querySelector('b').textContent = b.a; el.querySelector('div span').textContent = b.b
+    el.querySelector('.n').textContent = b.n; el.querySelector('b').textContent = b.a; el.querySelector(':scope > div > span').textContent = b.b
     const k = clamp((t - b.t0) / 0.45)
     el.style.opacity = String(ease.out(k)); el.style.transform = `translateY(${(1 - ease.out(k)) * 10}px)`
   }
@@ -1266,7 +1273,7 @@ class ContactShadow {
     this.depthMat.clippingPlanes = LAB_PLANES; this.depthMat.clipIntersection = true
     this.hb = new THREE.ShaderMaterial(HorizontalBlurShader); this.hb.depthTest = false
     this.vb = new THREE.ShaderMaterial(VerticalBlurShader); this.vb.depthTest = false
-    this.quad = new THREE.Mesh(new THREE.PlaneGeometry(), this.hb); this.quad.frustumCulled = false
+    this.quad = new THREE.Mesh(new THREE.PlaneGeometry(W, W).rotateX(Math.PI / 2), this.hb); this.quad.frustumCulled = false; this.quad.position.y = lab.groundY + 0.01
   }
   blur(amount) {
     const r = this.lab.renderer
@@ -1373,56 +1380,65 @@ class Debris {
 
 class Flow {
   /**
-   * lab.flow({ paths: [[[x,y,z],...], ...] (machine metres), count: 1200, size: 0.01 (metres),
-   *            color: (pathIndex, u) => [r,g,b] linear, speed: 0.5 (path lengths per second), jitter: 0.004, parent })
-   *   f.speed = ...  each frame from the solver; f.colorFn can change live
+   * Streamlines that move: each particle is a short streak drawn along its path, bright at the head,
+   * fading at the tail (reads like smoke in a wind tunnel, not dust).
+   * lab.flow({ paths: [[[x,y,z],...], ...] (machine metres), count: 500, length: 0.06 (fraction of a path),
+   *            color: (pathIndex, u) => [r,g,b], speed: 0.3 (path lengths per second), parent })
+   *   f.speed and f.opacity are set each frame from the solver; f.colorFn can change live
    */
   constructor(lab, o) {
     this.lab = lab; this.o = o
     this.curves = o.paths.map((p) => p.isCurve ? p : new THREE.CatmullRomCurve3(p.map((q) => new THREE.Vector3(...q))))
-    const lens = this.curves.map((c) => c.getLength()); this.lens = lens
-    const n = o.count ?? 1200; this.n = n
+    // sample every path once into a lookup table (getPointAt per frame is too slow)
+    const S = 256
+    this.lut = this.curves.map((c) => { const a = new Float32Array((S + 1) * 3); const v = new THREE.Vector3(); for (let i = 0; i <= S; i++) { c.getPointAt(i / S, v); a[i * 3] = v.x; a[i * 3 + 1] = v.y; a[i * 3 + 2] = v.z } return a })
+    this.S = S
+    const lens = this.curves.map((c) => c.getLength())
+    const n = o.count ?? 500; this.n = n
+    this.seg = o.segments ?? 8
+    this.len = o.length ?? 0.07
     const R = rng(o.seed ?? 3)
-    this.pi = new Uint16Array(n); this.u = new Float32Array(n); this.off = new Float32Array(n * 3); this.sp = new Float32Array(n)
-    const tot = lens.reduce((a, b) => a + b, 0)
+    this.pi = new Uint16Array(n); this.u = new Float32Array(n); this.sp = new Float32Array(n)
+    const tot = lens.reduce((x, y) => x + y, 0)
     for (let i = 0; i < n; i++) {
       let r = R() * tot, k = 0; while (r > lens[k] && k < lens.length - 1) { r -= lens[k]; k++ }
-      this.pi[i] = k; this.u[i] = R(); this.sp[i] = 0.8 + R() * 0.4
-      const j = o.jitter ?? 0; this.off.set([(R() - 0.5) * j, (R() - 0.5) * j, (R() - 0.5) * j], i * 3)
+      this.pi[i] = k; this.u[i] = R(); this.sp[i] = 0.85 + R() * 0.3
     }
     this.speed = o.speed ?? 0.3
-    this.colorFn = o.color ?? (() => [0.5, 0.75, 1])
+    this.colorFn = o.color ?? (() => [0.3, 0.55, 1])
+    const V = n * this.seg * 2
     const g = new THREE.BufferGeometry()
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3))
-    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3))
-    g.setAttribute('aA', new THREE.BufferAttribute(new Float32Array(n), 1))
-    const m = new THREE.ShaderMaterial({
-      uniforms: { uSize: { value: (o.size ?? 0.01) * lab.k }, uPx: { value: innerHeight }, uOp: { value: 1 }, uBright: { value: o.bright ?? 1.6 } },
-      transparent: true, depthWrite: false, blending: o.blending ?? (lab.theme === 'paper' ? THREE.NormalBlending : THREE.AdditiveBlending), vertexColors: true,
-      vertexShader: `attribute float aA; varying vec3 vC; varying float vA; uniform float uSize, uPx;
-        void main(){ vC = color; vA = aA; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv; gl_PointSize = max(1.5, uSize * uPx / -mv.z); }`,
-      fragmentShader: `varying vec3 vC; varying float vA; uniform float uOp, uBright; void main(){ vec2 q = gl_PointCoord - 0.5; float a = smoothstep(0.5, 0.15, length(q)); gl_FragColor = vec4(vC * uBright, a * vA * uOp); }`,
-    })
-    this.pts = new THREE.Points(g, m); this.pts.frustumCulled = false; this.pts.layers.set(LAYER_FX); this.pts.renderOrder = 3
-    ;(o.parent ?? lab.machine).add(this.pts)
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(V * 3), 3))
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(V * 4), 4))
+    const paper = lab.theme === 'paper'
+    const m = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: paper ? THREE.NormalBlending : THREE.AdditiveBlending, toneMapped: false })
+    this.lines = new THREE.LineSegments(g, m); this.lines.frustumCulled = false; this.lines.layers.set(LAYER_FX); this.lines.renderOrder = 3
+    ;(o.parent ?? lab.machine).add(this.lines)
     this.opacity = 1
     lab.onTick((dt) => this.update(dt))
   }
+  _at(k, u, out, o) { const L = this.lut[k], f = clamp(u) * this.S, i = Math.min(this.S - 1, Math.floor(f)), t = f - i; for (let a = 0; a < 3; a++) out[o + a] = L[i * 3 + a] + (L[i * 3 + 3 + a] - L[i * 3 + a]) * t }
   update(dt) {
-    const g = this.pts.geometry, P = g.attributes.position.array, C = g.attributes.color.array, A = g.attributes.aA.array
-    const v = new THREE.Vector3()
+    const g = this.lines.geometry, P = g.attributes.position.array, C = g.attributes.color.array
+    const seg = this.seg, op = this.opacity
+    this.lines.visible = op > 0.003
+    if (!this.lines.visible) return
+    let v = 0
     for (let i = 0; i < this.n; i++) {
       const k = this.pi[i]
       this.u[i] = (this.u[i] + dt * this.speed * this.sp[i] * (this.o.perPath ? this.o.perPath[k] ?? 1 : 1)) % 1
-      const u = this.u[i]
-      this.curves[k].getPointAt(u, v)
-      P[i * 3] = v.x + this.off[i * 3]; P[i * 3 + 1] = v.y + this.off[i * 3 + 1]; P[i * 3 + 2] = v.z + this.off[i * 3 + 2]
-      const c = this.colorFn(k, u); C[i * 3] = c[0]; C[i * 3 + 1] = c[1]; C[i * 3 + 2] = c[2]
-      A[i] = smoothstep(0, 0.06, u) * smoothstep(1, 0.92, u)
+      const head = this.u[i]
+      const c = this.colorFn(k, head)
+      const life = smoothstep(0, 0.08, head) * smoothstep(1, 0.9, head)
+      for (let j = 0; j < seg; j++) {
+        const u0 = head - (this.len * j) / seg, u1 = head - (this.len * (j + 1)) / seg
+        this._at(k, u0, P, v * 3); this._at(k, u1, P, v * 3 + 3)
+        const a0 = (1 - j / seg) * life * op, a1 = (1 - (j + 1) / seg) * life * op
+        C.set([c[0], c[1], c[2], u0 < 0 ? 0 : a0, c[0], c[1], c[2], u1 < 0 ? 0 : a1], v * 4)
+        v += 2
+      }
     }
-    this.pts.material.uniforms.uPx.value = innerHeight * this.lab.renderer.getPixelRatio()
-    this.pts.material.uniforms.uOp.value = this.opacity
-    g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true; g.attributes.aA.needsUpdate = true
+    g.attributes.position.needsUpdate = true; g.attributes.color.needsUpdate = true
   }
 }
 
@@ -1437,14 +1453,14 @@ class Plume {
     this.lab = lab
     const R = o.radius, L = o.length
     const geo = new THREE.CylinderGeometry(1, 1, 1, 64, 64, true).translate(0, -0.5, 0)
-    this.u = { uT: { value: 0 }, uP: { value: 1 }, uShock: { value: o.shocks ?? 1.4 }, uKind: { value: o.color === 'jet' ? 1 : 0 }, uR: { value: R }, uL: { value: L }, uPaper: { value: lab.theme === 'paper' ? 1 : 0 } }
+    this.u = { uT: { value: 0 }, uP: { value: 1 }, uShock: { value: o.shocks ?? 1.4 }, uKind: { value: o.color === 'jet' ? 1 : 0 }, uR: { value: R }, uL: { value: L }, uPaper: { value: lab.theme === 'paper' ? 1 : 0 }, uTint: { value: new THREE.Color(1, 1, 1) }, uSpread: { value: o.spread ?? 1 } }
     const m = new THREE.ShaderMaterial({
-      uniforms: this.u, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      vertexShader: `uniform float uR, uL, uP; varying vec3 vP; varying vec3 vN; varying vec3 vV;
+      uniforms: this.u, transparent: true, depthWrite: false, blending: lab.theme === 'paper' ? THREE.NormalBlending : THREE.AdditiveBlending, side: THREE.DoubleSide,
+      vertexShader: `uniform float uR, uL, uP, uSpread; varying vec3 vP; varying vec3 vN; varying vec3 vV;
         void main(){ vec3 p = position; float y = -p.y; // 0 at exit, 1 at the tail
-          float r = uR * (1.0 + y * (0.35 + 1.4 * y) * mix(0.6, 1.0, uP)) ; p.xz *= r; p.y = -y * uL * mix(0.35, 1.0, uP);
+          float r = uR * (1.0 + y * (0.35 + 1.4 * y) * mix(0.6, 1.0, uP) * uSpread) ; p.xz *= r; p.y = -y * uL * mix(0.35, 1.0, uP);
           vP = vec3(p.x / uR, y, p.z / uR); vec4 mv = modelViewMatrix * vec4(p, 1.0); vN = normalize(normalMatrix * vec3(p.x, 0.0, p.z)); vV = -mv.xyz; gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: `uniform float uT, uP, uShock, uKind, uPaper; varying vec3 vP; varying vec3 vN; varying vec3 vV;
+      fragmentShader: `uniform float uT, uP, uShock, uKind, uPaper; uniform vec3 uTint; varying vec3 vP; varying vec3 vN; varying vec3 vV;
         float h(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
         float n3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(mix(h(i), h(i + vec3(1,0,0)), f.x), mix(h(i + vec3(0,1,0)), h(i + vec3(1,1,0)), f.x), f.y), mix(mix(h(i + vec3(0,0,1)), h(i + vec3(1,0,1)), f.x), mix(h(i + vec3(0,1,1)), h(i + vec3(1,1,1)), f.x), f.y), f.z); }
@@ -1458,8 +1474,10 @@ class Plume {
           vec3 b = uKind > 0.5 ? vec3(1.0, 0.55, 0.25) : vec3(1.0, 0.45, 0.2);
           vec3 c = mix(a, b, smoothstep(0.05, 0.6, y)) * (0.35 + 0.9 * turb) * core * fade;
           c += vec3(1.0, 0.85, 0.65) * shock * 2.4 * (uKind > 0.5 ? 0.2 : 1.0);
-          c *= uP * mix(1.0, 0.85, uPaper);
-          gl_FragColor = vec4(c, 1.0); }`,
+          c *= uP * uTint;
+          // on paper: normal blending, alpha from the light the gas emits, an HDR core that tone maps to white hot
+          float al = clamp(max(c.r, max(c.g, c.b)) * 0.9, 0.0, 0.92);
+          gl_FragColor = uPaper > 0.5 ? vec4(c * 1.8 / max(al, 0.12), al) : vec4(c, 1.0); }`,
     })
     const mesh = new THREE.Mesh(geo, m); mesh.layers.set(LAYER_FX); mesh.renderOrder = 4; mesh.frustumCulled = false
     const grp = new THREE.Group(); grp.add(mesh)
@@ -1472,9 +1490,10 @@ class Plume {
     lab.onTick((dt) => { this.u.uT.value += dt; this.u.uP.value = this.power; mesh.visible = this.power > 0.01 })
   }
   set shocks(v) { this.u.uShock.value = v }
+  set tint(c) { this.u.uTint.value.setRGB(c[0], c[1], c[2]) }
 }
 
 // ---------------------------------------------------------------- global handle for pages that paste the kit inline
-const LabKit = { THREE, Lab, MAT, mat, GEO, heatGlow, blackbody, clamp, lerp, smoothstep, ease, approach, table, rk4, fmt, rng, LAYER_FX }
+const LabKit = { THREE, Lab, MAT, mat, setCaps, GEO, heatGlow, blackbody, clamp, lerp, smoothstep, ease, approach, table, rk4, fmt, rng, LAYER_FX }
 if (typeof window !== 'undefined') window.LabKit = LabKit
 export default LabKit

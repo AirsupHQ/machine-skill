@@ -98,8 +98,13 @@ if (music) {
     if (!existsSync(src)) {
       const u = `https://archive.org/download/freepd/${encodeURIComponent(cat)}/${encodeURIComponent(name)}.mp3`
       console.log('download', u)
-      const r = await fetch(u); if (!r.ok) { console.error('music download failed', r.status); process.exit(4) }
-      writeFileSync(src, Buffer.from(await r.arrayBuffer()))
+      // archive.org mirrors fail now and then: retry with backoff, and keep the film silent if it never comes
+      let ok = false
+      for (let k = 0; k < 6 && !ok; k++) {
+        try { const r = await fetch(u); if (r.ok) { writeFileSync(src, Buffer.from(await r.arrayBuffer())); ok = true } else console.log('music download', r.status, 'retry', k + 1) } catch (e) { console.log('music download error, retry', k + 1) }
+        if (!ok) await new Promise((r) => setTimeout(r, 3000 * (k + 1)))
+      }
+      if (!ok) { console.error('music download failed: film kept silent at', silent, '(mux later with --music <file>)'); process.exit(4) }
     }
   }
   const len = TO - FROM, lufs = Number(opt('--gain', -18))
