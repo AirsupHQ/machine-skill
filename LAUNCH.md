@@ -23,7 +23,7 @@ Then on GitHub:
 
 **When:** a weekday, 8:00 to 9:30 in San Francisco (17:00 to 18:30 CET). One hero post that day, nothing else from the lab.
 
-The post copy, reply clips and prepared answers are in `~/Documents/New sims/38 Airsup Lab skill (open source)/post.md`. Order:
+The post copy, reply clips and prepared answers are in `~/Documents/New sims/38 Machine Skill (open source)/post.md`. Order:
 
 1. Main post with `launch.mp4` (no link, no hashtags).
 2. Reply 1 within a minute: the GitHub link, the install command and the live gallery link.

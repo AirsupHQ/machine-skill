@@ -1123,7 +1123,7 @@ export class Lab {
         { t: 28, ...T({ az: v.az - 28, el: v.el + 6, dist: v.dist * 1.08 }) },
       ],
       events: [
-        { t: 0, type: [0.2, 1.6], beat: ['01', 'You type one line.', 'Plain words, in Claude Code.'] },
+        { t: 0, type: [0.2, 1.6], beat: ['01', 'One sentence is the whole brief.', 'Typed into Claude Code.'] },
         { t: 2.2, beat: ['02', 'Claude builds the machine.', `Part by part, ${this.parts.length} of them.`] },
         ...(c ? [
           { t: 6.2, beat: ['03', o.runBeat ?? 'It runs on real physics.', o.runSub ?? 'Every number comes from the solver.'], cursor: { to: `slider:${sl}:${(c.value - c.o.min) / (c.o.max - c.o.min)}`, dur: 0.9 } },

@@ -132,7 +132,7 @@ Do at least four review rounds. In each: whole view, cutaway with labels, explod
 
 `lab.autoFilm({ runBeat, runSub, breakBeat, breakSub, sliderTo })` writes the standard 28 second story from your machine, in numbered beats with the editorial captions:
 
-1. You type one line (the prompt bar types itself).
+1. One sentence is the whole brief (the prompt bar types itself).
 2. Claude builds the machine (parts fly in by assembly order while the counter climbs: "84 of 3,597 parts").
 3. It runs (a cursor drags the slider; the hero number climbs from the solver).
 4. Cut it open (section caps, labels with live values).

@@ -63,7 +63,7 @@ html,body { margin:0; width:1920px; height:1080px; overflow:hidden; background:v
 <div id="prompt" class="layer"><div class="card"><div class="hd"><span>You type</span><span>Claude Code</span></div><div class="tx"><b>/machine</b> <span class="t"></span><span class="caret"></span></div><div class="send">&#8593;</div></div></div>
 <div id="stage" class="layer"><div class="card"><iframe id="sim" title="live machine"></iframe></div></div>
 <div id="mont" class="layer"><div class="card"><iframe id="sim2" title="second machine"></iframe></div></div>
-<div id="end" class="layer"><div class="name">Machine Skill</div><div class="line"><b>Name a machine,</b> and Claude builds <i>the real thing</i>, running on real physics.</div><div class="cmd"><span class="t"></span><span class="caret"></span></div><div class="small">An open source skill for Claude Code &#183; built with Claude Opus 5.5 &#183; MIT &#183; airsup.ai/lab/skill</div></div>
+<div id="end" class="layer"><div class="name">Machine Skill</div><div class="line"><b>One sentence in,</b> the real machine out, <i>running on real physics</i>.</div><div class="cmd"><span class="t"></span><span class="caret"></span></div><div class="small">An open source skill for Claude Code, by Airsup &#183; built with Claude Opus 5.5 &#183; MIT &#183; airsup.ai/lab/skill</div></div>
 <div id="beat"><span class="n"></span><div><b></b> <span class="g"></span></div></div>
 <div id="fade"></div>
 <script type="module">
@@ -84,12 +84,12 @@ const LEN = 40
 // timeline (s)
 const T = { gridIn: 0, here: 3.0, promptIn: 4.3, typeA: 4.9, typeB: 7.6, stageIn: 8.6, simStart: 8.9, montIn: 28.2, endIn: 34.2 }
 const BEATS = [
-  [4.5, 8.5, '01', 'You type one line.', 'Plain words, in Claude Code.'],
+  [4.5, 8.5, '01', 'One sentence is the whole brief.', 'Typed into Claude Code.'],
   [9.0, 14.2, '02', 'Claude builds the machine.', 'Real parts, real sizes, real materials.'],
   [14.4, 19.4, '03', 'You open the throttle.', 'A Brayton cycle solves every frame.'],
   [19.6, 23.9, '04', 'Cut it open.', 'Solid section faces, live numbers.'],
   [24.1, 28.0, '05', 'Then throw a fan blade.', 'The solver decides what the case must hold.'],
-  [28.5, 34.0, '06', 'Another line, another machine.', 'A full flow rocket engine, cut open while it fires.'],
+  [28.5, 34.0, '06', 'A new sentence, a new machine.', 'A full flow rocket engine, cut open while it fires.'],
 ]
 const $ = (s) => document.querySelector(s)
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x))
@@ -124,7 +124,7 @@ function grid(t) {
   for (const w of words) { const [x, y, zz] = w.p; w.el.style.transform = `translate3d(${960 + x}px, ${540 + y}px, ${zz + z}px)`; w.el.style.opacity = String(1 - io(clamp((t - T.here) / 0.8))) }
   slash.style.transform = `translate3d(${960 - 50}px, ${540 - 90}px, ${z * 0.6}px)`; slash.style.opacity = String(1 - io(clamp((t - T.here) / 0.8)))
   const big = $('#big')
-  const a = t < T.here - 0.3 ? 'Name a machine' : 'Here is one'
+  const a = t < T.here - 0.3 ? 'Think of any machine' : 'Say, this one'
   big.innerHTML = a
   big.style.opacity = String(t < T.here - 0.3 ? out(clamp((t - 0.3) / 0.7)) * clamp((T.here - 0.3 - t) / 0.3 + 0.0001) : out(clamp((t - T.here + 0.2) / 0.4)) * clamp((T.promptIn - t) / 0.4))
   big.style.transform = `translateY(${t < T.here ? 0 : 0}px)`
