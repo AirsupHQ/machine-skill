@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Turbofan · Airsup Lab</title>
+<meta name="description" content="A 2.9 m high bypass turbofan on a ground run stand: open the throttle, cut it open, take it apart, throw a fan blade. Every number from a Brayton cycle solver.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<!-- lab-kit:start -->
+<script type="module" src="../kit/lab-kit.js"></script>
+<!-- lab-kit:end -->
+<script type="module">
+const { THREE, Lab, MAT, GEO, heatGlow, clamp, lerp, approach, fmt, smoothstep } = window.LabKit
+
+// ------------------------------------------------------------------ lab
+// "a turbofan jet engine": a large high bypass turbofan (about Trent 1000 / GEnx size) on a ground run stand.
+const CL = 2.05          // engine centreline height above the floor (m)
+const lab = new Lab({
+  prompt: 'a turbofan jet engine, the kind that pushes a widebody off the runway',
+  no: 1, title: 'Turbofan', sub: 'ground run',
+  size: 5.6,
+  view: { az: 40, el: 10, dist: 2.1, target: [0.1, 1.75, 0], fov: 30 },
+  cut: { a: [0, 0, 1], b: [0, 1, 0], center: [0, CL, 0], reach: 0.5 },
+})
+
+// engine frame: axis along local +Y, intake lip at y = Y(0), s = metres aft of the lip
+const eng = new THREE.Group()
+eng.rotation.z = -Math.PI / 2           // local +Y (forward) -> world +X
+eng.position.set(0.25, CL, 0)
+lab.add(eng, { name: 'Engine', count: 0 })
+const LIP = 2.45
+const Y = (s) => LIP - s
+const P = (pts) => pts.map(([r, s]) => [r, Y(s)])
+
+// ------------------------------------------------------------------ materials
+const paintNacelle = MAT.paint({ color: [0.78, 0.78, 0.77], roughness: 0.3, clearcoat: 0.8 })
+const lipAl = MAT.aluminiumMachined({ roughness: 0.16 })
+const fanTi = MAT.titanium({ roughness: 0.2, color: [0.6, 0.57, 0.53] })
+const casing = MAT.steelDark({ color: [0.3, 0.3, 0.31], roughness: 0.46 })
+const cowl = MAT.paint({ color: [0.62, 0.63, 0.64], roughness: 0.36, clearcoat: 0.4, cap: [0.72, 0.72, 0.72] })
+const compTi = MAT.titanium({ roughness: 0.26 })
+const compNi = MAT.steel({ color: [0.6, 0.58, 0.55], roughness: 0.3 })
+const vaneSteel = MAT.stainless({ roughness: 0.3 })
+const drum = MAT.steel({ roughness: 0.24 })
+const hptTBC = heatGlow(MAT.ceramic({ color: [0.86, 0.78, 0.6], roughness: 0.45 }), 900)
+const lptNi = heatGlow(MAT.inconel({ roughness: 0.38 }), 700)
+const liner = heatGlow(MAT.inconel({ color: [0.52, 0.47, 0.42], roughness: 0.5 }), 900)
+const plugM = heatGlow(MAT.inconel({ color: [0.5, 0.46, 0.42], roughness: 0.34 }), 700)
+const standPaint = MAT.paint({ color: [0.07, 0.075, 0.08], roughness: 0.5, clearcoat: 0.3 })
+const pinSteel = MAT.chrome({ roughness: 0.12 })
+const rubber = MAT.rubber()
+
+// spinner with the white spiral every big fan has (ground crews see at a glance that it turns)
+const spiralTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d')
+  g.fillStyle = '#1a1b1d'; g.fillRect(0, 0, 512, 512)
+  g.strokeStyle = '#f2f1ed'; g.lineWidth = 46
+  for (const o of [-512, 0, 512]) { g.beginPath(); g.moveTo(o, 512); g.bezierCurveTo(o + 120, 330, o + 300, 120, o + 512, 0); g.stroke() }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t
+})()
+const spinnerM = MAT.paint({ color: [1, 1, 1], map: spiralTex, roughness: 0.25, clearcoat: 1, finish: null })
+
+// ------------------------------------------------------------------ flowpath (radii in m against s)
+const nacOuter = [[1.5, 0], [1.575, 0.035], [1.635, 0.12], [1.685, 0.3], [1.715, 0.62], [1.722, 1.0], [1.70, 1.6], [1.66, 2.1], [1.585, 2.6], [1.49, 3.06]]
+const nacInner = [[1.468, 3.08], [1.452, 2.6], [1.462, 2.0], [1.465, 1.45], [1.458, 1.05], [1.452, 0.82], [1.432, 0.5], [1.402, 0.22], [1.412, 0.09], [1.452, 0.02]]
+const cowlOut = [[0.6, 1.04], [0.69, 1.2], [0.8, 1.6], [0.86, 2.2], [0.85, 2.9], [0.8, 3.55], [0.73, 3.95], [0.585, 4.16]]
+const cowlIn = [[0.563, 4.13], [0.69, 3.97], [0.67, 3.6], [0.52, 3.25], [0.485, 3.2], [0.485, 2.99], [0.53, 2.95], [0.53, 2.6], [0.445, 2.56], [0.445, 1.66], [0.47, 1.6], [0.575, 1.5], [0.585, 1.12], [0.596, 1.06]]
+const tipCore = (s) => s < 1.5 ? lerp(0.585, 0.565, (s - 1.1) / 0.4) : s < 1.66 ? lerp(0.565, 0.44, (s - 1.5) / 0.16) : s < 2.56 ? lerp(0.44, 0.435, (s - 1.66) / 0.9) : s < 3.22 ? 0.48 : lerp(0.5, 0.685, (s - 3.25) / 0.72)
+const hubCore = (s) => s < 1.5 ? lerp(0.42, 0.43, (s - 1.1) / 0.4) : s < 1.66 ? lerp(0.43, 0.3, (s - 1.5) / 0.16) : s < 2.56 ? lerp(0.3, 0.385, (s - 1.66) / 0.9) : s < 3.22 ? 0.385 : lerp(0.39, 0.42, (s - 3.25) / 0.72)
+
+// ------------------------------------------------------------------ static structure
+const nacelle = new THREE.Group()
+nacelle.add(new THREE.Mesh(GEO.lathe(P([...nacOuter, ...nacInner]), 160), paintNacelle))
+// polished anti-ice lip band and the acoustic liner ring in the fan case
+nacelle.add(new THREE.Mesh(GEO.lathe(P([[1.452, 0.02], [1.5, -0.003], [1.578, 0.034], [1.64, 0.13], [1.672, 0.24], [1.66, 0.25], [1.62, 0.15], [1.565, 0.06], [1.505, 0.03], [1.46, 0.045]]), 160), lipAl))
+const linerM = MAT.satin({ color: [0.11, 0.115, 0.12], roughness: 0.62 })
+nacelle.add(new THREE.Mesh(GEO.lathe(P([[1.405, 0.3], [1.43, 0.3], [1.448, 0.68], [1.425, 0.68]]), 160), linerM))
+nacelle.add(new THREE.Mesh(GEO.lathe(P([[1.453, 1.05], [1.47, 1.05], [1.47, 1.55], [1.455, 1.55]]), 160), linerM))
+lab.add(nacelle, { name: 'Nacelle', parent: eng, explode: [-2.1, 0.5, 0], xray: 'shell' })
+
+const coreCowl = new THREE.Mesh(GEO.lathe(P([...cowlOut, ...cowlIn]), 128), cowl)
+lab.add(coreCowl, { name: 'Core cowl', parent: eng, explode: [-1.35, -0.1, 0], xray: 'shell' })
+
+// outlet guide vanes in the bypass duct, and the core frame struts
+const ogv = new THREE.Mesh(GEO.rotor({ count: 46, axis: 'y', r0: 0.79, r1: 1.47, chord: 0.2, thick: 0.06, camber: 0.06, twist: 0, pitch: 0.18, nS: 6, nC: 10 }), vaneSteel)
+ogv.position.y = Y(1.68)
+lab.add(ogv, { name: 'Outlet guide vanes', parent: eng, explode: [-1.1, 0.15, 0], count: 46 })
+
+// stator rows: booster, HPC, turbine nozzles (they come off with the casing)
+const stators = new THREE.Group()
+const statorRow = (s, n, chord, mat, pitch = -0.35) => { const m = new THREE.Mesh(GEO.rotor({ count: n, axis: 'y', r0: hubCore(s) + 0.004, r1: tipCore(s) + 0.006, chord, thick: 0.08, camber: 0.08, twist: 0.1, pitch, nS: 4, nC: 7 }), mat); m.position.y = Y(s); stators.add(m); return n }
+let nStat = 0
+for (let i = 0; i < 3; i++) nStat += statorRow(1.24 + i * 0.12, 64, 0.05, compTi)
+nStat += statorRow(1.69, 40, 0.06, compTi, -0.2) // variable inlet guide vanes
+for (let i = 0; i < 10; i++) nStat += statorRow(1.79 + i * 0.083, 70 + i * 4, lerp(0.045, 0.026, i / 9), i < 5 ? compTi : compNi)
+nStat += statorRow(2.99, 36, 0.06, hptTBC, -0.9)
+nStat += statorRow(3.13, 40, 0.05, hptTBC, -0.9)
+for (let i = 0; i < 6; i++) nStat += statorRow(3.3 + i * 0.12, 80 + i * 6, 0.05, lptNi, -0.8)
+lab.add(stators, { name: 'Stator vanes', parent: eng, explode: [-1.35, -0.1, 0], count: nStat })
+
+// combustor: annular liners, dome, 22 fuel nozzles; the flame ring glows with T4
+const comb = new THREE.Group()
+comb.add(new THREE.Mesh(GEO.shell(P([[0.43, 2.95], [0.49, 2.86], [0.505, 2.7], [0.48, 2.62]]).reverse(), 0.008, 96), liner))
+comb.add(new THREE.Mesh(GEO.shell(P([[0.37, 2.95], [0.385, 2.86], [0.39, 2.7], [0.40, 2.62]]).reverse(), 0.008, 96, false), liner))
+comb.add(new THREE.Mesh(GEO.lathe(P([[0.395, 2.6], [0.485, 2.6], [0.485, 2.635], [0.395, 2.635]]), 96), liner))
+const nozzleG = GEO.merge(Array.from({ length: 22 }, (_, i) => { const a = (i / 22) * Math.PI * 2; const g = GEO.lathe([[0, 0], [0.018, 0], [0.022, 0.02], [0.012, 0.08], [0.008, 0.16], [0, 0.16]], 16); g.rotateZ(Math.PI); g.translate(0.44 * Math.cos(a), Y(2.58) + 0.0, 0.44 * Math.sin(a)); return g }))
+comb.add(new THREE.Mesh(nozzleG, MAT.brass({ roughness: 0.3 })))
+const flameM = MAT.glow({ emissive: [1.0, 0.42, 0.12], emissiveIntensity: 0 })
+const flame = new THREE.Mesh(GEO.lathe(P([[0.405, 2.64], [0.47, 2.64], [0.48, 2.78], [0.45, 2.93], [0.41, 2.93], [0.395, 2.78]]), 96), flameM)
+flame.userData.noAO = true; flame.castShadow = false
+comb.add(flame)
+lab.add(comb, { name: 'Combustor', parent: eng, explode: [0, -0.05, 0], count: 26 })
+
+// exhaust plug
+const plug = new THREE.Mesh(GEO.lathe(P([[0, 3.98], [0.39, 3.98], [0.385, 4.1], [0.33, 4.4], [0.2, 4.75], [0.06, 4.98], [0, 5.02]]), 96), plugM)
+lab.add(plug, { name: 'Exhaust plug', parent: eng, explode: [0, -1.7, 0] })
+
+// ------------------------------------------------------------------ LP spool: spinner, fan, booster, shaft, LPT
+const lp = new THREE.Group(); eng.add(lp)
+const spinner = new THREE.Mesh(GEO.lathe(P([[0, 0.34], [0.09, 0.38], [0.2, 0.48], [0.32, 0.62], [0.41, 0.78], [0.43, 0.88], [0.43, 0.96], [0, 0.96]]), 96), spinnerM)
+lab.add(spinner, { name: 'Spinner', parent: lp, explode: [0, 1.9, 0] })
+const fanOpts = { axis: 'y', r0: 0.41, r1: 1.445, chord: [0.36, 0.5], thick: [0.11, 0.035], camber: [0.09, 0.03], twist: -0.62, pitch: 0.82, sweep: -0.12, nS: 18, nC: 18 }
+const FAN_N = 20
+const fan = new THREE.Group()
+const fanRing = new THREE.Mesh(GEO.rotor({ count: FAN_N - 1, phase: (2 * Math.PI) / FAN_N, ...fanOpts }), fanTi)
+const oneBlade = new THREE.Mesh(GEO.rotor({ count: 1, ...fanOpts }), fanTi)
+fan.add(fanRing, oneBlade)
+fan.add(new THREE.Mesh(GEO.lathe(P([[0.12, 0.72], [0.43, 0.72], [0.43, 1.02], [0.12, 1.02]]), 96), drum))
+fan.position.y = Y(0.86)
+fan.children[2].position.y = -Y(0.86)
+lab.add(fan, { name: 'Fan', parent: lp, explode: [0, 1.25, 0], count: FAN_N + 1 })
+
+const booster = new THREE.Group()
+booster.add(new THREE.Mesh(GEO.lathe(P([[0.2, 1.1], [0.42, 1.1], [0.432, 1.5], [0.2, 1.5]]), 96), drum))
+let nBoost = 0
+for (let i = 0; i < 3; i++) { const s = 1.18 + i * 0.12, n = 58; const m = new THREE.Mesh(GEO.rotor({ count: n, axis: 'y', r0: hubCore(s) - 0.004, r1: tipCore(s) - 0.004, chord: 0.055, thick: 0.07, camber: 0.07, twist: -0.4, pitch: 0.7, nS: 5, nC: 7 }), compTi); m.position.y = Y(s); booster.add(m); nBoost += n }
+lab.add(booster, { name: 'Booster', parent: lp, explode: [0, 0.65, 0], count: nBoost + 1 })
+
+const shaft = new THREE.Mesh(GEO.lathe(P([[0, 0.9], [0.075, 0.9], [0.075, 4.0], [0, 4.0]]), 48), MAT.steel({ roughness: 0.2 }))
+lab.add(shaft, { name: 'LP shaft', parent: lp })
+
+const lpt = new THREE.Group()
+let nLpt = 0
+for (let i = 0; i < 6; i++) {
+  const s = 3.36 + i * 0.12, n = 110 + i * 8
+  const m = new THREE.Mesh(GEO.rotor({ count: n, axis: 'y', r0: hubCore(s), r1: tipCore(s) - 0.005, chord: 0.055, thick: 0.1, camber: 0.12, twist: -0.3, pitch: -0.9, nS: 5, nC: 7 }), lptNi)
+  m.position.y = Y(s); lpt.add(m); nLpt += n
+  lpt.add(new THREE.Mesh(GEO.lathe(P([[0.075, s - 0.03], [0.2, s - 0.03], [0.24, s - 0.015], [hubCore(s), s - 0.03], [hubCore(s), s + 0.03], [0.24, s + 0.015], [0.2, s + 0.03], [0.075, s + 0.03]]), 96), drum))
+}
+lab.add(lpt, { name: 'LP turbine', parent: lp, explode: [0, -1.0, 0], count: nLpt + 6 })
+
+// ------------------------------------------------------------------ HP spool: 10 stage compressor, 2 stage turbine
+const hp = new THREE.Group(); eng.add(hp)
+const hpc = new THREE.Group()
+hpc.add(new THREE.Mesh(GEO.lathe(P([[0.14, 1.7], [0.3, 1.7], [0.385, 2.58], [0.3, 2.62], [0.2, 2.98], [0.14, 2.98]]), 128), drum))
+let nHpc = 0
+for (let i = 0; i < 10; i++) {
+  const s = 1.74 + i * 0.083, n = 38 + i * 5
+  const m = new THREE.Mesh(GEO.rotor({ count: n, axis: 'y', r0: hubCore(s), r1: tipCore(s) - 0.004, chord: lerp(0.05, 0.028, i / 9), thick: 0.06, camber: 0.07, twist: -0.35, pitch: 0.75, nS: 4, nC: 7 }), i < 5 ? compTi : compNi)
+  m.position.y = Y(s); hpc.add(m); nHpc += n
+}
+lab.add(hpc, { name: 'HP compressor', parent: hp, count: nHpc + 1 })
+const hpt = new THREE.Group()
+let nHpt = 0
+for (const [k, s] of [[0, 3.06], [1, 3.19]]) {
+  const n = 72 + k * 4
+  const m = new THREE.Mesh(GEO.rotor({ count: n, axis: 'y', r0: 0.385, r1: 0.475, chord: 0.06, thick: 0.16, camber: 0.14, twist: -0.2, pitch: -0.95, nS: 4, nC: 8 }), hptTBC)
+  m.position.y = Y(s); hpt.add(m); nHpt += n
+  hpt.add(new THREE.Mesh(GEO.lathe(P([[0.09, s - 0.035], [0.2, s - 0.05], [0.3, s - 0.03], [0.385, s - 0.03], [0.385, s + 0.03], [0.3, s + 0.03], [0.2, s + 0.05], [0.09, s + 0.035]]), 96), drum))
+}
+lab.add(hpt, { name: 'HP turbine', parent: hp, explode: [0, -0.5, 0], count: nHpt + 2 })
+
+// ------------------------------------------------------------------ ground run stand
+const stand = new THREE.Group()
+const beam = (len, w, h) => GEO.rbox(len, h, w, 0.01)
+for (const z of [-1.3, 1.3]) {
+  const r = new THREE.Mesh(beam(4.6, 0.16, 0.22), standPaint); r.position.set(0.15, 0.17, z); stand.add(r)
+  for (const x of [-1.9, 2.2]) { const w = new THREE.Mesh(GEO.disc(0.11, 0.07, 0.01, 32), rubber); w.rotation.x = Math.PI / 2; w.position.set(x, 0.11, z * 1.08); stand.add(w); const hub = new THREE.Mesh(GEO.disc(0.05, 0.08, 0.006, 24), pinSteel); hub.rotation.x = Math.PI / 2; hub.position.copy(w.position); stand.add(hub) }
+}
+for (const x of [-2.0, -0.95, 1.25, 2.3]) { const c = new THREE.Mesh(beam(0.14, 2.7, 0.18), standPaint); c.position.set(x, 0.17, 0); stand.add(c) }
+// cradles: a yoke under the fan case, a yoke under the turbine case, each on two posts
+const yoke = (x, R, w) => {
+  const g = GEO.lathe([[R, -w / 2], [R + 0.1, -w / 2], [R + 0.1, w / 2], [R, w / 2]], 96, { phi0: Math.PI * 1.19, phiLen: Math.PI * 0.62 })
+  const m = new THREE.Mesh(g, standPaint); m.rotation.z = Math.PI / 2; m.position.set(x, CL, 0); stand.add(m)
+  const a = Math.PI * 0.31, h = CL - (R + 0.05) * Math.cos(a) - 0.28
+  for (const sz of [-1, 1]) {
+    const post = new THREE.Mesh(GEO.rbox(0.15, h, 0.15, 0.012), standPaint); post.position.set(x, 0.28 + h / 2, sz * (R + 0.05) * Math.sin(a)); stand.add(post)
+    const pin = new THREE.Mesh(GEO.disc(0.05, 0.22, 0.006, 24), pinSteel); pin.rotation.z = Math.PI / 2; pin.position.set(x, 0.28 + h - 0.06, post.position.z); stand.add(pin)
+  }
+}
+yoke(1.25, 1.725, 0.18)
+yoke(-0.95, 0.815, 0.15)
+lab.add(stand, { name: 'Ground run stand', count: 24 })
+
+// ------------------------------------------------------------------ the solver: 0D Brayton cycle, static, sea level ISA
+const ISA = { T: 288.15, p: 101325 }
+const cp = 1005, cpt = 1150, gt = 1.33, LHV = 43.0e6
+const eta = { fan: 0.92, boost: 0.89, hpc: 0.88, burn: 0.995, hpt: 0.9, lpt: 0.91, noz: 0.98, mech: 0.99 }
+const AFAN = Math.PI * (1.445 ** 2 - 0.41 ** 2)          // fan face annulus from the model (m2)
+// blade mass from the model: mesh volume x titanium x hollow fraction (wide chord blades are hollow)
+const bladeVol = GEO.volume(oneBlade.geometry)
+const BLADE_KG = bladeVol.V * 4430 * 0.42
+const BLADE_RCG = Math.hypot(bladeVol.centroid.x, bladeVol.centroid.z)
+function cycle(n) {
+  // n = N1 / N1 max. Corrected flow follows N1; pressure ratios and T4 rise with it.
+  const M = 0.58 * Math.pow(n, 1.05)
+  const T = ISA.T / (1 + 0.2 * M * M), p = ISA.p * Math.pow(T / ISA.T, 3.5), rho = p / (287 * T), V = M * Math.sqrt(1.4 * 287 * T)
+  const m = rho * AFAN * V
+  const BPR = lerp(9.0, 10.0, n), mc = m / (1 + BPR), mb = m - mc
+  const FPR = 1 + 0.5 * n * n, BPRr = 1 + 1.2 * Math.pow(n, 2), OPR = 1 + 41 * Math.pow(n, 2.2)
+  const T4 = 880 + 870 * Math.pow(n, 2.4)
+  const T13 = ISA.T * (1 + (Math.pow(FPR, 0.2857) - 1) / eta.fan)
+  const T25 = T13 * (1 + (Math.pow(BPRr, 0.2857) - 1) / eta.boost)
+  const T3 = ISA.T * (1 + (Math.pow(OPR, 0.2857) - 1) / eta.hpc)
+  const f = Math.max(0, (cpt * T4 - cp * T3) / (eta.burn * LHV - cpt * T4))
+  const mt = mc * (1 + f)
+  const Whpc = mc * cp * (T3 - T25), Wfan = m * cp * (T13 - ISA.T), Wb = mc * cp * (T25 - T13)
+  const T45 = T4 - Whpc / eta.mech / (mt * cpt)
+  const T5 = T45 - (Wfan + Wb) / eta.mech / (mt * cpt)
+  const p3 = OPR * ISA.p, p4 = p3 * 0.95
+  const T45s = T4 - (T4 - T45) / eta.hpt, p45 = p4 * Math.pow(T45s / T4, gt / (gt - 1))
+  const T5s = T45 - (T45 - T5) / eta.lpt, p5 = p45 * Math.pow(Math.max(1e-3, T5s / T45), gt / (gt - 1))
+  const p13 = FPR * ISA.p * 0.985
+  const V19 = Math.sqrt(Math.max(0, 2 * cp * T13 * eta.noz * (1 - Math.pow(ISA.p / p13, 0.2857))))
+  const V9 = Math.sqrt(Math.max(0, 2 * cpt * T5 * eta.noz * (1 - Math.pow(ISA.p / Math.max(p5, ISA.p), (gt - 1) / gt))))
+  const Fb = mb * V19, Fc = mt * V9, F = Fb + Fc
+  const wf = f * mc
+  return { T13, T25, m, mc, mb, BPR, FPR, OPR, T3, T4, T45, T5, p3, V19, V9, F, Fb, Fc, wf, tsfc: F > 1 ? wf / F * 1e6 : 0, Whpc, Wfan }
+}
+const N1MAX = 2700, N2MAX = 13000     // rpm at 100 %
+const sim = { sparkQ: [], n1: 0.22, n2: 0.6, cmd: 0.22, lpA: 0, hpA: 0, shake: 0, out: false, c: cycle(0.22) }
+
+// ------------------------------------------------------------------ editorial layer
+lab.hero({ label: 'Thrust', unit: 'kN', max: 350, digits: 0 })
+const thr = lab.slider({ id: 'throttle', label: 'Throttle', min: 0, max: 100, value: 0, unit: '%', ends: ['Idle', 'Take-off'] })
+lab.how('A 0D Brayton cycle at sea level, static, ISA day. Air mass flow comes from the fan face area of this model and the axial Mach number at that N1; fan, booster and compressor raise the pressure, the burner adds fuel to reach T4, and the two turbines give back exactly the work the compressors take. Both nozzles expand to ambient. Spin is shown 1:60.', [
+  'mdot = rho A V        A = 5.87 m2 (from the model)',
+  'T3 = T2 [1 + (OPR^0.286 - 1) / eta_c]',
+  'f = (cp_t T4 - cp T3) / (eta_b LHV - cp_t T4)',
+  'mc (1+f) cp_t (T4 - T45) = mc cp (T3 - T25)',
+  'F = mb V19 + mc (1+f) V9',
+])
+
+// labels hang on the static engine frame, on the section planes, so they stay put while the spools turn
+const L = (t, at, value) => lab.label(eng, t, { at, value })
+L('Fan', [-0.95, Y(0.86), 0], () => `${fmt(sim.n1 * N1MAX)} rpm · ${fmt(sim.c.m)} kg/s`)
+L('Bypass duct', [-1.18, Y(2.3), 0], () => `${fmt(sim.c.V19)} m/s · ${fmt(sim.c.F > 1 ? (sim.c.Fb / sim.c.F) * 100 : 0)} % of thrust`)
+L('HP compressor', [-0.37, Y(2.15), 0], () => `${fmt(sim.c.p3 / 1e5, 1)} bar · ${fmt(sim.c.T3 - 273.15)} °C`)
+L('Combustor', [-0.45, Y(2.78), 0], () => `T4 ${fmt(sim.c.T4)} K`)
+L('HP turbine', [-0.43, Y(3.12), 0], () => `${fmt(sim.n2 * N2MAX)} rpm · ${fmt(sim.c.T45 - 273.15)} °C`)
+L('LP turbine', [-0.6, Y(3.68), 0], () => `${fmt(sim.c.T5 - 273.15)} °C out`)
+
+// ------------------------------------------------------------------ air through the engine (paths from the flowpath)
+const pol = (r, a, s) => [r * Math.cos(a), Y(s), r * Math.sin(a)]
+const interp = (pts, s) => { for (let i = 1; i < pts.length; i++) if (s <= pts[i][1]) return lerp(pts[i - 1][0], pts[i][0], (s - pts[i - 1][1]) / (pts[i][1] - pts[i - 1][1])); return pts[pts.length - 1][0] }
+const nacIn = [...nacInner].reverse().map(([r, s]) => [r, s])
+const cowlO = cowlOut
+const bypassPaths = [], corePaths = []
+const R = (() => { let s = 9; return () => ((s = (s * 16807) % 2147483647) / 2147483647) })()
+for (let i = 0; i < 70; i++) {
+  const a = R() * Math.PI * 2, f = 0.12 + 0.82 * R()
+  const pts = []
+  for (const s of [-2.0, -1.2, -0.5, 0.05, 0.5, 0.86, 1.2, 1.68, 2.2, 2.8, 3.1]) {
+    const ri = s < 1.04 ? 0.62 : interp(cowlO, s), ro = s < 0.05 ? 1.43 : interp(nacIn, clamp(s, 0.05, 3.06))
+    let r = lerp(ri, ro, f)
+    if (s < 0.05) r = lerp(r, lerp(0.7, 2.2, f), smoothstep(0.05, -2.0, s))
+    pts.push(pol(r, a, s))
+  }
+  for (const s of [3.6, 4.4, 5.6]) pts.push(pol(lerp(1.2, 1.36, f) - (s - 3.1) * 0.03, a, s))
+  bypassPaths.push(pts)
+}
+for (let i = 0; i < 40; i++) {
+  const a = R() * Math.PI * 2, f = 0.2 + 0.6 * R()
+  const pts = []
+  for (const s of [-2.0, -1.1, -0.4, 0.2, 0.7, 0.95, 1.18, 1.4, 1.58, 1.75, 2.1, 2.45, 2.7, 2.9, 3.1, 3.4, 3.7, 3.95, 4.14]) {
+    let r = s < 1.05 ? lerp(0.47, 0.58, f) : lerp(hubCore(s), tipCore(s), f)
+    if (s < 0.7) r = lerp(r, lerp(0.2, 0.7, f), smoothstep(0.7, -2.0, s))
+    pts.push(pol(r, a, s))
+  }
+  for (const s of [4.6, 5.3, 6.4]) pts.push(pol(lerp(0.4, 0.55, f) - (s - 4.14) * 0.04, a, s))
+  corePaths.push(pts)
+}
+const air = lab.flow({ paths: bypassPaths, count: 2600, size: 0.02, parent: eng, jitter: 0.02, color: () => [0.28, 0.5, 0.95], seed: 4 })
+const coreS = [-2.0, 1.05, 1.5, 2.56, 2.62, 2.95, 3.22, 3.97, 4.14, 6.4]
+const coreAir = lab.flow({ paths: corePaths, count: 1500, size: 0.02, parent: eng, jitter: 0.01, seed: 5, color: (k, u) => tempColor(coreTempAt(u)) })
+function coreTempAt(u) {
+  // along the core path: T2 -> T25 -> T3 -> T4 -> T45 -> T5 -> exhaust mixing
+  const s = lerp(-2.0, 6.4, u), c = sim.c
+  const Ts = [ISA.T, ISA.T, c.T25, c.T3, c.T3, c.T4, c.T45, c.T5, c.T5, lerp(c.T5, ISA.T, 0.6)]
+  for (let i = 1; i < coreS.length; i++) if (s <= coreS[i]) return lerp(Ts[i - 1], Ts[i], (s - coreS[i - 1]) / (coreS[i] - coreS[i - 1]))
+  return ISA.T
+}
+function tempColor(T) {
+  // blue (cold) to white (compressed) to amber and red (burnt gas)
+  const k = clamp((T - 288) / 1500)
+  if (k < 0.3) return [lerp(0.28, 0.75, k / 0.3), lerp(0.5, 0.78, k / 0.3), lerp(0.95, 0.9, k / 0.3)]
+  if (k < 0.55) return [lerp(0.75, 1.0, (k - 0.3) / 0.25), lerp(0.78, 0.6, (k - 0.3) / 0.25), lerp(0.9, 0.25, (k - 0.3) / 0.25)]
+  return [1.0, lerp(0.6, 0.3, (k - 0.55) / 0.45), lerp(0.25, 0.08, (k - 0.55) / 0.45)]
+}
+
+// ------------------------------------------------------------------ run
+lab.onTick((dt, lab) => {
+  sim.cmd = sim.out ? 0 : lerp(0.22, 1.0, thr.value / 100)
+  // spool dynamics: accel limited going up (fuel schedule), slower coming down; a blade out engine windmills down
+  const up = sim.cmd > sim.n1
+  sim.n1 = approach(sim.n1, sim.out ? 0.08 : sim.cmd, up ? 1.25 : 2.2, dt)
+  sim.n2 = approach(sim.n2, sim.out ? 0.12 : lerp(0.6, 1.0, Math.pow(clamp((sim.cmd - 0.22) / 0.78), 0.75)), up ? 1.1 : 2.0, dt)
+  sim.c = cycle(Math.max(0.05, sim.n1))
+  if (sim.out) { sim.c.F *= 0.15; sim.c.Fb *= 0.15; sim.c.Fc *= 0.15 }
+  // spin, shown 1:60 so the eye can follow it
+  const w1 = (sim.n1 * N1MAX / 60) * Math.PI * 2, w2 = (sim.n2 * N2MAX / 60) * Math.PI * 2
+  sim.lpA += (w1 / 60) * dt; sim.hpA += (w2 / 60 / 4) * dt
+  lp.rotation.y = sim.lpA; hp.rotation.y = -sim.hpA
+  // heat
+  hptTBC.userData.heat.value = sim.c.T45 * 0.92 + 120
+  liner.userData.heat.value = sim.c.T4 * 0.86
+  lptNi.userData.heat.value = sim.c.T5 * 0.95
+  plugM.userData.heat.value = sim.c.T5 * 0.88
+  flameM.emissiveIntensity = smoothstep(900, 1750, sim.c.T4) * 7 + 0.4
+  // air
+  air.speed = 0.04 + 0.22 * Math.pow(sim.n1, 1.3)
+  coreAir.speed = 0.035 + 0.17 * Math.pow(sim.n1, 1.3)
+  air.opacity = coreAir.opacity = clamp(0.35 + 0.65 * sim.n1) * (0.25 + 0.75 * Math.max(lab.state.cut, lab.state.xray))
+  // blade out: the imbalance shakes the whole engine on its stand, decaying as it winds down
+  if (sim.out) {
+    const imb = BLADE_KG * w1 * w1 * BLADE_RCG
+    sim.shake = imb / 2.5e6
+    const t = lab.time
+    eng.position.set(0.25 + Math.sin(t * w1 / 60 * 3) * sim.shake * 0.012, CL + Math.cos(t * w1 / 60 * 3) * sim.shake * 0.02, 0)
+  } else eng.position.set(0.25, CL, 0)
+  while (sim.sparkQ.length && sim.sparkQ[0].t <= lab.time) {
+    const { a } = sim.sparkQ.shift()
+    lab.sparks.emit(eng.localToWorld(new THREE.Vector3(1.46 * Math.cos(-a), Y(0.86), 1.46 * Math.sin(-a))), 60, 2.2)
+  }
+  // hero
+  const F = sim.c.F / 1000
+  const st = sim.out ? 'blade out, contained' : Math.abs(sim.cmd - sim.n1) < 0.01 ? (sim.n1 > 0.95 ? 'take-off' : sim.n1 < 0.24 ? 'ground idle' : 'stable') : up ? 'spooling up' : 'spooling down'
+  const sub = sim.out
+    ? `<span class="bad">${fmt(BLADE_KG, 1)} kg blade at ${fmt(sim.n1 * N1MAX)} rpm · imbalance ${fmt(BLADE_KG * w1 * w1 * BLADE_RCG / 1000)} kN</span>`
+    : `N1 ${fmt(sim.n1 * 100, 1)} % · TGT ${fmt(sim.c.T45 - 273.15)} °C · fuel ${fmt(sim.c.wf, 2)} kg/s`
+  lab.setHero(F, { state: st, sub, bad: sim.out })
+})
+
+// break it: fan blade off at take-off power (the containment test every engine passes before it flies)
+let bladeKE = 0, imbAtRelease = 0
+lab.breakIt({
+  label: 'Throw a fan blade',
+  run(lab) {
+    const w1 = (sim.n1 * N1MAX / 60) * Math.PI * 2
+    const v = w1 * BLADE_RCG
+    bladeKE = 0.5 * BLADE_KG * v * v
+    imbAtRelease = BLADE_KG * w1 * w1 * BLADE_RCG
+    sim.out = true
+    // the blade leaves the hub and is caught by the fan case: sparks run along the case
+    oneBlade.visible = false
+    for (let k = 0; k < 14; k++) sim.sparkQ.push({ t: lab.time + k * 0.028, a: lp.rotation.y + k * 0.32 })
+  },
+  reset() { sim.out = false; sim.sparkQ = []; oneBlade.visible = true },
+})
+
+// the film: the kit's standard story, with this machine's beats
+lab.autoFilm({
+  runBeat: 'You open the throttle.', runSub: 'A Brayton cycle solver, live.',
+  breakBeat: 'Then throw a fan blade.', breakSub: 'The case has to hold it.',
+})
+lab.start()
+</script>
+</body>
+</html>
