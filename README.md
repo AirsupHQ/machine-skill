@@ -63,6 +63,14 @@ Each machine was made from the single line under it. Click one to run it live.
     <td><sub><b>Turbofan</b> · <i>a turbofan jet engine, the kind that pushes a widebody off the runway</i><br>Brayton cycle: about 340 kN at take-off, 83 % of it from the bypass. 3,597 parts. Break: throw a fan blade, and the solver computes the load the case must hold.</sub></td>
     <td><sub><b>Rocket engine</b> · <i>a Raptor style full flow rocket engine on a test stand</i><br>Chamber and nozzle solution: 2,462 kN and Isp 321 s at 330 bar, sea level, Mach 4.06 at the exit. Break: cut the regen cooling and the copper throat melts.</sub></td>
   </tr>
+  <tr>
+    <td width="50%"><a href="https://airsup.ai/lab/skill/refinery-pump"><img src=".github/assets/refinery-pump.jpg" alt="An API 610 overhung process pump with its motor and seal pot, cut open with red section faces and live labels"></a></td>
+    <td width="50%"><a href="https://airsup.ai/lab/skill/compressor"><img src=".github/assets/compressor.jpg" alt="An API 617 barrel compressor cut open to show six impellers, diaphragms and return channels"></a></td>
+  </tr>
+  <tr>
+    <td><sub><b>Process pump</b> · <i>a refinery process pump, API 610 style, cut open for plant training</i><br>Pump curve with the affinity laws, BEP, NPSH available against required, seal face leakage. Hover any part for what it does and what the operator checks. Break: drop the tower level and it cavitates.</sub></td>
+    <td><sub><b>Compressor</b> · <i>a multistage centrifugal compressor for a refinery, cut open</i><br>Six stages on one map: polytropic head, stage pressure ratios, surge line, anti-surge control, a lumped surge model. Break: trip the downstream unit with the anti-surge valve stuck and it surges.</sub></td>
+  </tr>
 </table>
 
 The pages are in [`examples/`](examples): each is one HTML file you can open from disk. More machines are coming; see [V2-IDEAS.md](V2-IDEAS.md), and send yours as a pull request.
