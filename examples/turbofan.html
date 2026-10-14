@@ -826,7 +826,10 @@ export class Lab {
   }
   _resize() {
     const w = innerWidth, h = innerHeight
-    this.camera.aspect = w / h; this.camera.updateProjectionMatrix()
+    this.camera.aspect = w / h
+    // re-apply the frame shift at the new size: a page that loaded at 0 x 0 (hidden tab or pane) keeps a NaN projection otherwise
+    if (this.view) this.camera.setViewOffset(w, h, -(this.view.frameX ?? 0) * w, 0, w, h)
+    this.camera.updateProjectionMatrix()
     this.renderer.setSize(w, h); this.composer.setSize(w, h)
     const s = this.renderer.getDrawingBufferSize(new THREE.Vector2())
     this.ao.setSize(s.x, s.y); this.grade.uniforms.uRes.value.set(s.x, s.y)
