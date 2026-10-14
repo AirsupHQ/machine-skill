@@ -38,7 +38,13 @@ Then one command turns it into a film for your feed.
 npx skills add AirsupHQ/machine-skill -g -a claude-code
 ```
 
-Then in Claude Code:
+Or for opencode:
+
+```sh
+npx skills add AirsupHQ/machine-skill -g -a opencode
+```
+
+Then in Claude Code or opencode:
 
 ```text
 /machine a mechanical watch movement, the escapement ticking
@@ -48,6 +54,12 @@ You get `watch.html`: open it, drag, cut, explode, break. To film it:
 
 ```sh
 node ~/.claude/skills/machine/scripts/record.mjs watch.html out/watch.mp4 --music freepd:Classical/Easy_Lemon
+```
+
+With opencode the skill lives at `~/.config/opencode/skills/machine` instead:
+
+```sh
+node ~/.config/opencode/skills/machine/scripts/record.mjs watch.html out/watch.mp4 --music freepd:Classical/Easy_Lemon
 ```
 
 ## Gallery
@@ -92,12 +104,18 @@ Machine Skill is a standard [Agent Skill](https://code.claude.com/docs/en/skills
 
 | | Command | Installs to |
 |---|---|---|
-| **skills CLI**, for you | `npx skills add AirsupHQ/machine-skill -g -a claude-code` | `~/.claude/skills/machine` |
-| **skills CLI**, one project | `npx skills add AirsupHQ/machine-skill` | `.claude/skills/machine` |
-| **git**, for you | `git clone https://github.com/AirsupHQ/machine-skill.git ~/.claude/skills/machine` | `~/.claude/skills/machine` |
-| **git**, one project | `git clone https://github.com/AirsupHQ/machine-skill.git .claude/skills/machine` | `.claude/skills/machine` |
+| **skills CLI**, for you (Claude Code) | `npx skills add AirsupHQ/machine-skill -g -a claude-code` | `~/.claude/skills/machine` |
+| **skills CLI**, one project (Claude Code) | `npx skills add AirsupHQ/machine-skill` | `.claude/skills/machine` |
+| **skills CLI**, for you (opencode) | `npx skills add AirsupHQ/machine-skill -g -a opencode` | `~/.config/opencode/skills/machine` |
+| **skills CLI**, one project (opencode) | `npx skills add AirsupHQ/machine-skill -a opencode` | `.opencode/skills/machine` |
+| **git**, for you (Claude Code) | `git clone https://github.com/AirsupHQ/machine-skill.git ~/.claude/skills/machine` | `~/.claude/skills/machine` |
+| **git**, one project (Claude Code) | `git clone https://github.com/AirsupHQ/machine-skill.git .claude/skills/machine` | `.claude/skills/machine` |
+| **git**, for you (opencode) | `git clone https://github.com/AirsupHQ/machine-skill.git ~/.config/opencode/skills/machine` | `~/.config/opencode/skills/machine` |
+| **git**, one project (opencode) | `git clone https://github.com/AirsupHQ/machine-skill.git .opencode/skills/machine` | `.opencode/skills/machine` |
 
 Claude Code picks up new skills in a running session; if the `skills` folder did not exist when the session started, run `/reload-skills`.
+
+opencode picks up the skill via its native `skill` tool from any of the above locations, and exposes it as `/machine` in the TUI (via `metadata.opencode/slash` plus the `.opencode/commands/machine.md` shim).
 
 <details>
 <summary><b>Other agent hosts</b></summary>
@@ -107,13 +125,14 @@ Claude Code picks up new skills in a running session; if the `skills` folder did
 - **Claude.ai and the Claude desktop app**: zip this folder and upload it under Settings, Capabilities, Skills. The pages run in any browser; recording needs a machine with Node and ffmpeg.
 - **Claude Agent SDK / API with skills**: mount the folder as a skill directory; SKILL.md is self contained.
 - **Codex, Cursor, other agents that read Agent Skills**: point them at `SKILL.md`. Everything else is plain files.
+- **opencode**: `npx skills add AirsupHQ/machine-skill -g -a opencode`, or `git clone https://github.com/AirsupHQ/machine-skill.git ~/.config/opencode/skills/machine`. Invoke with `/machine <one line>`; the skill loads through opencode's native `skill` tool.
 - **No agent at all**: copy `kit/template.html`, fill the four sections by hand.
 
 </details>
 
 ## Usage
 
-Type `/machine` and name the machine. You can also just ask Claude to "build", "simulate" or "show how X works"; the skill loads itself for machines, engines, mechanisms and devices.
+Type `/machine` and name the machine. You can also just ask Claude to "build", "simulate" or "show how X works"; the skill loads itself for machines, engines, mechanisms and devices. Same in opencode: `/machine ...` loads the skill through the `skill` tool.
 
 ```text
 /machine a hydroelectric Francis turbine
@@ -165,6 +184,7 @@ Every part is a closed solid with a double sided material clipped by two planes 
 ```text
 machine-skill/
 ├── SKILL.md                 what Claude reads
+├── .opencode/commands/machine.md   /machine shim for opencode
 ├── kit/
 │   ├── lab-kit.js           the runtime (inlined into every page)
 │   └── template.html        the page Claude starts from
@@ -181,7 +201,7 @@ machine-skill/
 
 | | Needed for | Notes |
 |---|---|---|
-| **Claude Code** (or any Agent Skills host) | building machines | |
+| **Claude Code** (or any Agent Skills host, incl. opencode) | building machines | |
 | **A browser with WebGL 2** | running the pages | Desktop Chrome, Safari, Firefox, Edge. Phones work with a lighter load. |
 | **Node 18+, Playwright, ffmpeg** | screenshots and films | `npm i -D playwright && npx playwright install chromium`; ffmpeg from your package manager. |
 
